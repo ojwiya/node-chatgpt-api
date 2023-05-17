@@ -6,9 +6,12 @@ import boxen from 'boxen';
 import ora from 'ora';
 import clipboard from 'clipboardy';
 import inquirer from 'inquirer';
+import * as dotenv from 'dotenv'; // see https://github.com/motdotla/dotenv#how-do-i-use-dotenv-with-import
 import inquirerAutocompletePrompt from 'inquirer-autocomplete-prompt';
 import ChatGPTClient from '../src/ChatGPTClient.js';
 import BingAIClient from '../src/BingAIClient.js';
+
+dotenv.config();
 
 const arg = process.argv.find(_arg => _arg.startsWith('--settings'));
 const path = arg?.split('=')[1] ?? './settings.js';
@@ -20,7 +23,9 @@ if (fs.existsSync(path)) {
     settings = (await import(pathToFileURL(fullPath).toString())).default;
 } else {
     if (arg) {
-        console.error('Error: the file specified by the --settings parameter does not exist.');
+        console.error(
+            'Error: the file specified by the --settings parameter does not exist.',
+        );
     } else {
         console.error('Error: the settings.js file does not exist.');
     }
@@ -37,7 +42,9 @@ if (settings.storageFilePath && !settings.cacheOptions.store) {
         fs.writeFileSync(settings.storageFilePath, '');
     }
 
-    settings.cacheOptions.store = new KeyvFile({ filename: settings.storageFilePath });
+    settings.cacheOptions.store = new KeyvFile({
+        filename: settings.storageFilePath,
+    });
 }
 
 let conversationData = {};
@@ -71,7 +78,7 @@ const availableCommands = [
 
 inquirer.registerPrompt('autocomplete', inquirerAutocompletePrompt);
 
-const clientToUse = settings.cliOptions?.clientToUse || settings.clientToUse || 'chatgpt';
+const clientToUse =	settings.cliOptions?.clientToUse || settings.clientToUse || 'chatgpt';
 
 let client;
 switch (clientToUse) {
@@ -90,9 +97,14 @@ switch (clientToUse) {
         break;
 }
 
-console.log(tryBoxen('ChatGPT CLI', {
-    padding: 0.7, margin: 1, borderStyle: 'double', dimBorder: true,
-}));
+console.log(
+    tryBoxen('ChatGPT CLI', {
+        padding: 0.7,
+        margin: 1,
+        borderStyle: 'double',
+        dimBorder: true,
+    }),
+);
 
 await conversation();
 
@@ -172,7 +184,10 @@ async function onMessage(message) {
             onProgress: (token) => {
                 reply += token;
                 const output = tryBoxen(`${reply.trim()}█`, {
-                    title: aiLabel, padding: 0.7, margin: 1, dimBorder: true,
+                    title: aiLabel,
+                    padding: 0.7,
+                    margin: 1,
+                    dimBorder: true,
                 });
                 spinner.text = `${spinnerPrefix}\n${output}`;
             },
@@ -186,7 +201,10 @@ async function onMessage(message) {
                 responseText = response.response;
                 break;
         }
-        clipboard.write(responseText).then(() => {}).catch(() => {});
+        clipboard
+            .write(responseText)
+            .then(() => {})
+            .catch(() => {});
         spinner.stop();
         switch (clientToUse) {
             case 'bing':
@@ -208,12 +226,17 @@ async function onMessage(message) {
         }
         await client.conversationsCache.set('lastConversation', conversationData);
         const output = tryBoxen(responseText, {
-            title: aiLabel, padding: 0.7, margin: 1, dimBorder: true,
+            title: aiLabel,
+            padding: 0.7,
+            margin: 1,
+            dimBorder: true,
         });
         console.log(output);
     } catch (error) {
         spinner.stop();
-        logError(error?.json?.error?.message || error.body || error || 'Unknown error');
+        logError(
+            error?.json?.error?.message || error.body || error || 'Unknown error',
+        );
     }
     return conversation();
 }
@@ -253,7 +276,9 @@ async function newConversation() {
 
 async function deleteAllConversations() {
     if (clientToUse !== 'chatgpt') {
-        logWarning('Deleting all conversations is only supported for ChatGPT client.');
+        logWarning(
+            'Deleting all conversations is only supported for ChatGPT client.',
+        );
         return conversation();
     }
     await client.conversationsCache.clear();
@@ -270,13 +295,22 @@ async function copyConversation() {
         logWarning('No conversation to copy.');
         return conversation();
     }
-    const { messages } = await client.conversationsCache.get(conversationData.conversationId);
+    const { messages } = await client.conversationsCache.get(
+        conversationData.conversationId,
+    );
     // get the last message ID
     const lastMessageId = messages[messages.length - 1].id;
-    const orderedMessages = ChatGPTClient.getMessagesForConversation(messages, lastMessageId);
-    const conversationString = orderedMessages.map(message => `#### ${message.role}:\n${message.message}`).join('\n\n');
+    const orderedMessages = ChatGPTClient.getMessagesForConversation(
+        messages,
+        lastMessageId,
+    );
+    const conversationString = orderedMessages
+        .map(message => `#### ${message.role}:\n${message.message}`)
+        .join('\n\n');
     try {
-        await clipboard.write(`${conversationString}\n\n----\nMade with ChatGPT CLI: <https://github.com/waylaidwanderer/node-chatgpt-api>`);
+        await clipboard.write(
+            `${conversationString}\n\n----\nMade with ChatGPT CLI: <https://github.com/waylaidwanderer/node-chatgpt-api>`,
+        );
         logSuccess('Copied conversation to clipboard.');
     } catch (error) {
         logError(error?.message || error);
@@ -285,21 +319,36 @@ async function copyConversation() {
 }
 
 function logError(message) {
-    console.log(tryBoxen(message, {
-        title: 'Error', padding: 0.7, margin: 1, borderColor: 'red',
-    }));
+    console.log(
+        tryBoxen(message, {
+            title: 'Error',
+            padding: 0.7,
+            margin: 1,
+            borderColor: 'red',
+        }),
+    );
 }
 
 function logSuccess(message) {
-    console.log(tryBoxen(message, {
-        title: 'Success', padding: 0.7, margin: 1, borderColor: 'green',
-    }));
+    console.log(
+        tryBoxen(message, {
+            title: 'Success',
+            padding: 0.7,
+            margin: 1,
+            borderColor: 'green',
+        }),
+    );
 }
 
 function logWarning(message) {
-    console.log(tryBoxen(message, {
-        title: 'Warning', padding: 0.7, margin: 1, borderColor: 'yellow',
-    }));
+    console.log(
+        tryBoxen(message, {
+            title: 'Warning',
+            padding: 0.7,
+            margin: 1,
+            borderColor: 'yellow',
+        }),
+    );
 }
 
 /**
